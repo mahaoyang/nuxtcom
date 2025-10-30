@@ -7,11 +7,33 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "prisma:seed": "tsx prisma/seed.ts",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@auth/core": "^0.34.3",
+    "@prisma/client": "^6.18.0",
+    "@sidebase/nuxt-auth": "^1.1.0",
+    "next-auth": "^4.24.13",
     "nuxt": "^4.2.0",
+    "radix-vue": "^1.9.17",
     "vue": "^3.5.22",
     "vue-router": "^4.6.3"
+  },
+  "devDependencies": {
+    "@nuxtjs/tailwindcss": "^6.14.0",
+    "autoprefixer": "^10.4.21",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "dotenv": "^17.2.3",
+    "postcss": "^8.5.6",
+    "prisma": "^6.18.0",
+    "shadcn-vue": "^2.3.2",
+    "tailwind-merge": "^3.3.1",
+    "tailwindcss": "^3.4.18",
+    "tailwindcss-animate": "^1.0.7",
+    "tsx": "^4.20.6"
   }
 }

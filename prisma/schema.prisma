@@ -1,0 +1,312 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum AuthProvider {
+  GOOGLE
+  GITHUB
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CommentStatus {
+  ACTIVE
+  FLAGGED
+  HIDDEN
+  DELETED
+}
+
+enum VoteType {
+  UPVOTE
+  DOWNVOTE
+}
+
+enum CreditAction {
+  VIEW
+  DAILY_LOGIN
+  COMMENT
+  COMMENT_UPVOTE
+  POST
+  POST_UPVOTE
+  RANKING_UPVOTE
+  SPAM_DETECTED
+  CONTENT_FLAGGED
+}
+
+enum EntityType {
+  BLOG_POST
+  RANKING
+}
+
+// User and Authentication
+model User {
+  id            String       @id @default(uuid())
+  email         String       @unique
+  name          String
+  avatar        String?
+  provider      AuthProvider
+  providerId    String
+  roleId        String
+  role          Role         @relation(fields: [roleId], references: [id])
+  creditPoints  Int          @default(0)
+  trustScore    Float        @default(0.0)
+  status        UserStatus   @default(ACTIVE)
+  lastActiveAt  DateTime     @default(now())
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  blogPosts        BlogPost[]
+  rankings         Ranking[]
+  comments         Comment[]
+  commentVotes     CommentVote[]
+  rankingVotes     RankingVote[]
+  creditHistory    UserCreditHistory[]
+  behaviorLogs     UserBehaviorLog[]
+
+  @@index([email])
+  @@index([status])
+  @@index([creditPoints])
+}
+
+model Role {
+  id            String   @id @default(uuid())
+  name          String   @unique
+  description   String
+  isSuperAdmin  Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  users             User[]
+  rolePermissions   RolePermission[]
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  description String
+  category    String
+
+  rolePermissions RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+// Credit and Behavior Tracking
+model UserCreditHistory {
+  id        String       @id @default(uuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    CreditAction
+  points    Int
+  reason    String
+  metadata  Json?
+  createdAt DateTime     @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model UserBehaviorLog {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action       String
+  entityType   String?
+  entityId     String?
+  isAnomalous  Boolean  @default(false)
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([isAnomalous])
+}
+
+// Content Categories
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  color       String?
+  icon        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  blogCategories    BlogCategory[]
+  rankingCategories RankingCategory[]
+
+  @@index([slug])
+}
+
+// Blog System
+model BlogPost {
+  id           String        @id @default(uuid())
+  title        String
+  slug         String        @unique
+  content      String
+  excerpt      String?
+  coverImage   String?
+  authorId     String
+  author       User          @relation(fields: [authorId], references: [id])
+  status       ContentStatus @default(DRAFT)
+  viewCount    Int           @default(0)
+  publishedAt  DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  categories BlogCategory[]
+  comments   Comment[]
+
+  @@index([slug])
+  @@index([authorId])
+  @@index([status])
+  @@index([publishedAt])
+}
+
+model BlogCategory {
+  blogPostId String
+  categoryId String
+  blogPost   BlogPost @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([blogPostId, categoryId])
+}
+
+// Ranking System
+model RankingType {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  slug         String   @unique
+  description  String?
+  icon         String?
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  rankings Ranking[]
+
+  @@index([slug])
+  @@index([displayOrder])
+}
+
+model Ranking {
+  id             String        @id @default(uuid())
+  title          String
+  slug           String        @unique
+  description    String
+  content        String?
+  url            String?
+  logoImage      String?
+  coverImage     String?
+  rankingTypeId  String
+  rankingType    RankingType   @relation(fields: [rankingTypeId], references: [id])
+  authorId       String
+  author         User          @relation(fields: [authorId], references: [id])
+  score          Float         @default(0.0)
+  viewCount      Int           @default(0)
+  upvoteCount    Int           @default(0)
+  status         ContentStatus @default(DRAFT)
+  metadata       Json?
+  publishedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  categories RankingCategory[]
+  votes      RankingVote[]
+  comments   Comment[]
+
+  @@index([slug])
+  @@index([rankingTypeId])
+  @@index([authorId])
+  @@index([status])
+  @@index([score])
+}
+
+model RankingCategory {
+  rankingId  String
+  categoryId String
+  ranking    Ranking  @relation(fields: [rankingId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([rankingId, categoryId])
+}
+
+model RankingVote {
+  id        String   @id @default(uuid())
+  rankingId String
+  ranking   Ranking  @relation(fields: [rankingId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  voteType  VoteType
+  createdAt DateTime @default(now())
+
+  @@unique([rankingId, userId])
+  @@index([rankingId])
+  @@index([userId])
+}
+
+// Comment System
+model Comment {
+  id          String        @id @default(uuid())
+  content     String
+  authorId    String
+  author      User          @relation(fields: [authorId], references: [id])
+  parentId    String?
+  parent      Comment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     Comment[]     @relation("CommentReplies")
+  entityType  EntityType
+  entityId    String
+  blogPost    BlogPost?     @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  ranking     Ranking?      @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  status      CommentStatus @default(ACTIVE)
+  upvoteCount Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  votes CommentVote[]
+
+  @@index([authorId])
+  @@index([parentId])
+  @@index([entityType, entityId])
+  @@index([status])
+}
+
+model CommentVote {
+  id        String   @id @default(uuid())
+  commentId String
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  voteType  VoteType
+  createdAt DateTime @default(now())
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+  @@index([userId])
+}
